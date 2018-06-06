@@ -19,6 +19,10 @@ extern "C" {
 
 #include "zmtp_endpoint.h"
 
+#ifdef MODULE_GNRC_TCP
+#include "net/gnrc/tcp.h"
+#endif
+
 typedef struct zmtp_tcp_endpoint zmtp_tcp_endpoint_t;
 
 zmtp_tcp_endpoint_t *
@@ -27,10 +31,16 @@ zmtp_tcp_endpoint_t *
 void
     zmtp_tcp_endpoint_destroy (zmtp_tcp_endpoint_t **self_p);
 
-int
+#ifdef MODULE_GNRC_TCP
+gnrc_tcp_tcb_t
     zmtp_tcp_endpoint_connect (zmtp_tcp_endpoint_t *self);
-
+gnrc_tcp_tcb_t 
+    zmtp_tcp_endpoint_listen (zmtp_tcp_endpoint_t *self);
+#else
+int 
+    zmtp_tcp_endpoint_connect (zmtp_tcp_endpoint_t *self);
 int
     zmtp_tcp_endpoint_listen (zmtp_tcp_endpoint_t *self);
+#endif
 
 #endif
