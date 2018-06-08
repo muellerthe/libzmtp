@@ -10,6 +10,7 @@
     =========================================================================
 */
 
+/*
 #include "zmtp_classes.h"
 
 struct zmtp_ipc_endpoint {
@@ -111,3 +112,4 @@ zmtp_ipc_endpoint_listen (zmtp_ipc_endpoint_t *self)
     close (s);
     return rc;
 }
+*/

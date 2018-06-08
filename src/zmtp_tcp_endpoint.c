@@ -97,14 +97,12 @@ zmtp_tcp_endpoint_connect (zmtp_tcp_endpoint_t *self)
 #ifdef MODULE_GNRC_TCP
     gnrc_tcp_tcb_t tcb;
     socket (&tcb);         //init tcb  
-    if(tcb == NULL)       
-        return NULL;
 
     const int rc = connect (&tcb, self->addr, self->port);      //open_active 
 
     if (rc != 0) {
-        close (&tcb);  
-        return NULL;
+        close (rc);  
+        //return NULL;
     }
 
     return tcb;     
@@ -137,12 +135,11 @@ zmtp_tcp_endpoint_listen (zmtp_tcp_endpoint_t *self)
 #ifdef MODULE_GNRC_TCP
     gnrc_tcp_tcb_t tcb;
     socket(&tcb);      // init tcb
-    if (tcb == NULL)      
-        return -1;
+
     const int rc = bind_listen_accept(&tcb, self->addr, self->port);      
     
     if(rc != 0)
-        close(&tcb);
+        close(rc);
 
     return tcb;
 
