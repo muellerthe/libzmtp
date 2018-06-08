@@ -1,7 +1,7 @@
 #include "net/gnrc/tcp.h"
 
 
-int close (gnrc_tcp_tcb_t *tcb) {
+int close_connection (gnrc_tcp_tcb_t *tcb) {
     gnrc_tcp_close(tcb);	
     return 0;
 }

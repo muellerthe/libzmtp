@@ -30,7 +30,7 @@ typedef struct _zmtp_channel_t zmtp_channel_t;
 //  @interface
 //  Constructor
 zmtp_channel_t *
-    zmtp_channel_new ();
+    zmtp_channel_new (void);
 
 //  Destructor; closes fd if connected
 void

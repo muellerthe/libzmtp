@@ -1,4 +1,4 @@
-int close(gnrc_tcp_tcb_t *tcb);
+int close_connection(gnrc_tcp_tcb_t *tcb);
 
 ssize_t send(gnrc_tcp_tcb_t *tcb, const void *buf, size_t len, int flags);
 

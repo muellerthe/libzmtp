@@ -92,7 +92,7 @@ zmtp_channel_destroy (zmtp_channel_t **self_p)
         zmtp_channel_t *self = *self_p;
 #ifdef MODULE_GNRC_TCP
         if(self->tcb != NULL)     
-            close (self->tcb);
+            close_connection (self->tcb);
 #else
         if (self->fd != -1)
             close (self->fd);
@@ -175,7 +175,7 @@ zmtp_channel_tcp_connect (zmtp_channel_t *self,
 
     if (s_negotiate (self) == -1) {
 #ifdef MODULE_GNRC_TCP
-        close (self->tcb);
+        close_connection (self->tcb);
         self->tcb = NULL;         
 #else
         close (self->fd);
@@ -224,7 +224,7 @@ zmtp_channel_connect (zmtp_channel_t *self, const char *endpoint_str)
 
     if (s_negotiate (self) == -1) {
 #ifdef MODULE_GNRC_TCP
-        close (self->tcb);
+        close_connection (self->tcb);
         self->tcb = NULL;         
 #else
         close (self->fd);
@@ -274,7 +274,7 @@ zmtp_channel_listen (zmtp_channel_t *self, const char *endpoint_str)
 
     if (s_negotiate (self) == -1) {
 #ifdef MODULE_GNRC_TCP
-        close (self->tcb);
+        close_connection (self->tcb);
         self->tcb = NULL;             
 #else
         close (self->fd);
