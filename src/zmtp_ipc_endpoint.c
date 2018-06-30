@@ -10,9 +10,9 @@
     =========================================================================
 */
 
-/*
-#include "zmtp_classes.h"
 
+#include "zmtp_classes.h"
+/*
 struct zmtp_ipc_endpoint {
     zmtp_endpoint_t base;
     struct sockaddr_un sockaddr;

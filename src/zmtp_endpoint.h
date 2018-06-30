@@ -25,8 +25,8 @@ struct zmtp_endpoint {
     void (*destroy) (struct zmtp_endpoint **self_p);
 
 #ifdef MODULE_GNRC_TCP
-    gnrc_tcp_tcb_t (*connect) (struct zmtp_endpoint *self);
-    gnrc_tcp_tcb_t (*listen) (struct zmtp_endpoint *self);
+    int (*connect) (gnrc_tcp_tcb_t *tcb, struct zmtp_endpoint *self);
+    int (*listen) (gnrc_tcp_tcb_t *tcb, struct zmtp_endpoint *self);
 #else
     int (*connect) (struct zmtp_endpoint *self);            
     int (*listen) (struct zmtp_endpoint *self);             
@@ -39,10 +39,10 @@ void
     zmtp_endpoint_destroy (zmtp_endpoint_t **self_p);
 
 #ifdef MODULE_GNRC_TCP
-gnrc_tcp_tcb_t 
-    zmtp_endpoint_connect (zmtp_endpoint_t *self);
-gnrc_tcp_tcb_t 
-    zmtp_endpoint_listen (zmtp_endpoint_t *self);
+int 
+    zmtp_endpoint_connect (gnrc_tcp_tcb_t *tcb, zmtp_endpoint_t *self);
+int 
+    zmtp_endpoint_listen (gnrc_tcp_tcb_t *tcb, zmtp_endpoint_t *self);
 #else
 int
     zmtp_endpoint_connect (zmtp_endpoint_t *self);

@@ -32,10 +32,10 @@ void
     zmtp_tcp_endpoint_destroy (zmtp_tcp_endpoint_t **self_p);
 
 #ifdef MODULE_GNRC_TCP
-gnrc_tcp_tcb_t 
-    zmtp_tcp_endpoint_connect (zmtp_tcp_endpoint_t *self);
-gnrc_tcp_tcb_t 
-    zmtp_tcp_endpoint_listen (zmtp_tcp_endpoint_t *self);
+int 
+    zmtp_tcp_endpoint_connect (gnrc_tcp_tcb_t *tcb, zmtp_tcp_endpoint_t *self);
+int 
+    zmtp_tcp_endpoint_listen (gnrc_tcp_tcb_t *tcb, zmtp_tcp_endpoint_t *self);
 #else
 int 
     zmtp_tcp_endpoint_connect (zmtp_tcp_endpoint_t *self);

@@ -29,7 +29,7 @@ struct _zmtp_msg_t {
 zmtp_msg_t *
 zmtp_msg_new (byte flags, size_t size)
 {
-    zmtp_msg_t *self = (zmtp_msg_t *) zmalloc (sizeof *self);
+    zmtp_msg_t *self = (zmtp_msg_t *) malloc (sizeof *self);
     assert (self);              //  For now, memory exhaustion is fatal
     self->flags = flags;
     self->data = (byte *) malloc (size);
@@ -48,7 +48,7 @@ zmtp_msg_t *
 zmtp_msg_from_data (byte flags, byte **data_p, size_t size)
 {
     assert (data_p);
-    zmtp_msg_t *self = (zmtp_msg_t *) zmalloc (sizeof *self);
+    zmtp_msg_t *self = (zmtp_msg_t *) malloc (sizeof *self);
     assert (self);              //  For now, memory exhaustion is fatal
     self->flags = flags;
     self->data = *data_p;
@@ -66,7 +66,7 @@ zmtp_msg_from_data (byte flags, byte **data_p, size_t size)
 zmtp_msg_t *
 zmtp_msg_from_const_data (byte flags, void *data, size_t size)
 {
-    zmtp_msg_t *self = (zmtp_msg_t *) zmalloc (sizeof *self);
+    zmtp_msg_t *self = (zmtp_msg_t *) malloc (sizeof *self);
     assert (self);              //  For now, memory exhaustion is fatal
     self->flags = flags;
     self->data = data;
@@ -127,6 +127,7 @@ zmtp_msg_size (zmtp_msg_t *self)
 //  --------------------------------------------------------------------------
 //  Selftest
 
+/*
 void
 zmtp_msg_test (bool verbose)
 {
@@ -142,3 +143,4 @@ zmtp_msg_test (bool verbose)
     //  @end
     printf ("OK\n");
 }
+*/

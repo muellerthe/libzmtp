@@ -12,10 +12,6 @@
 
 #include "zmtp_classes.h"
 
-#ifdef MODULE_GNRC_TCP
-#include "net/gnrc/tcp.h"
-#endif
-
 //  --------------------------------------------------------------------------
 //  Destructor
 
@@ -35,8 +31,8 @@ zmtp_endpoint_destroy (zmtp_endpoint_t **self_p)
 //  Connect to the endpoint
 
 #ifdef MODULE_GNRC_TCP
-gnrc_tcp_tcb_t 
-zmtp_endpoint_connect (zmtp_endpoint_t *self)
+int 
+zmtp_endpoint_connect (gnrc_tcp_tcb_t *tcb, zmtp_endpoint_t *self)
 #else
 int
 zmtp_endpoint_connect (zmtp_endpoint_t *self)
@@ -45,7 +41,11 @@ zmtp_endpoint_connect (zmtp_endpoint_t *self)
     assert (self);
     assert (self->connect);
 
+#ifdef MODULE_GNRC_TCP
+    return self->connect (tcb, self);
+#else
     return self->connect (self);
+#endif
 }
 
 
@@ -53,8 +53,8 @@ zmtp_endpoint_connect (zmtp_endpoint_t *self)
 //  Listen for new connection on endpoint
 
 #ifdef MODULE_GNRC_TCP
-gnrc_tcp_tcb_t 
-zmtp_endpoint_listen (zmtp_endpoint_t *self)
+int 
+zmtp_endpoint_listen (gnrc_tcp_tcb_t *tcb, zmtp_endpoint_t *self)
 #else
 int
 zmtp_endpoint_listen (zmtp_endpoint_t *self)
@@ -63,5 +63,9 @@ zmtp_endpoint_listen (zmtp_endpoint_t *self)
     assert (self);
     assert (self->listen);
 
+#ifdef MODULE_GNRC_TCP
+    return self->listen (tcb, self);
+#else
     return self->listen (self);
+#endif
 }

@@ -13,20 +13,11 @@
 #include "zmtp_classes.h"
 
 #ifdef MODULE_GNRC_TCP
-#include "zmtp_channel_wrapper.h"
-//#include "net/af.h"
-//#include "net/gnrc/ipv6.h"
-#include "net/gnrc/tcp.h"           //sys/include/net/gnrc/tcp.h
+#include "zmtp_channel_wrapper.h"        
 #endif
-
-//includes aus gnrc_networking:
-#include <stdio.h>
-#include <errno.h>
-
 
 
 //  ZMTP greeting (64 bytes)
-
 struct zmtp_greeting {
     byte signature [10];
     byte version [2];
@@ -36,14 +27,13 @@ struct zmtp_greeting {
 };
 
 //  Structure of our class
-
 struct _zmtp_channel_t {
 #ifdef MODULE_GNRC_TCP
-    gnrc_tcp_tcb_t *tcb;   // TCP Transmission Control Block
+    gnrc_tcp_tcb_t tcb;     // TCP Transmission Control Block
+    gnrc_tcp_tcb_t *tcb_ptr;   
 #else
     int fd;               //  BSD socket handle
-#endif
-    
+#endif    
 };
 
 static zmtp_endpoint_t *
@@ -68,12 +58,13 @@ static int
 //  Constructor
 
 zmtp_channel_t *
-zmtp_channel_new ()
+zmtp_channel_new (void)
 {
-    zmtp_channel_t *self = (zmtp_channel_t *) zmalloc (sizeof *self);
+    zmtp_channel_t *self = (zmtp_channel_t *) malloc (sizeof *self);
     assert (self);              //  For now, memory exhaustion is fatal
+
 #ifdef MODULE_GNRC_TCP
-    self->tcb = NULL;     
+    self->tcb_ptr = NULL;     
 #else
     self->fd = -1;
 #endif
@@ -91,8 +82,8 @@ zmtp_channel_destroy (zmtp_channel_t **self_p)
     if (*self_p) {
         zmtp_channel_t *self = *self_p;
 #ifdef MODULE_GNRC_TCP
-        if(self->tcb != NULL)     
-            close_connection (self->tcb);
+        if(self->tcb_ptr != NULL)     
+            close_connection (&self->tcb);
 #else
         if (self->fd != -1)
             close (self->fd);
@@ -106,7 +97,7 @@ zmtp_channel_destroy (zmtp_channel_t **self_p)
 //  --------------------------------------------------------------------------
 //  Connect channel to local endpoint
 
-/*
+#ifndef MODULE_GNRC_TCP
 int
 zmtp_channel_ipc_connect (zmtp_channel_t *self, const char *path)
 {
@@ -133,7 +124,7 @@ zmtp_channel_ipc_connect (zmtp_channel_t *self, const char *path)
 
     return 0;
 }
-*/
+#endif
 
 
 //  --------------------------------------------------------------------------
@@ -146,7 +137,7 @@ zmtp_channel_tcp_connect (zmtp_channel_t *self,
     assert (self);
 
 #ifdef MODULE_GNRC_TCP
-    if (self->tcb != NULL)     
+    if (self->tcb_ptr != NULL)     
 #else
     if (self->fd != -1)
 #endif
@@ -158,8 +149,9 @@ zmtp_channel_tcp_connect (zmtp_channel_t *self,
         return -1;
 
 #ifdef MODULE_GNRC_TCP
-    gnrc_tcp_tcb_t res = zmtp_endpoint_connect (endpoint);
-    self->tcb = &res;
+    int res = zmtp_endpoint_connect (&(self->tcb), endpoint);
+    assert(res == 0);
+    self->tcb_ptr = &self->tcb;
 #else
     self->fd = zmtp_endpoint_connect (endpoint);
 #endif
@@ -167,7 +159,7 @@ zmtp_channel_tcp_connect (zmtp_channel_t *self,
     zmtp_endpoint_destroy (&endpoint);
 
 #ifdef MODULE_GNRC_TCP
-    if (self->tcb == NULL)     
+    if (self->tcb_ptr == NULL)     
 #else
     if (self->fd == -1)
 #endif
@@ -175,8 +167,8 @@ zmtp_channel_tcp_connect (zmtp_channel_t *self,
 
     if (s_negotiate (self) == -1) {
 #ifdef MODULE_GNRC_TCP
-        close_connection (self->tcb);
-        self->tcb = NULL;         
+        close_connection (&self->tcb);
+        self->tcb_ptr = NULL;         
 #else
         close (self->fd);
         self->fd = -1;
@@ -197,7 +189,7 @@ zmtp_channel_connect (zmtp_channel_t *self, const char *endpoint_str)
     assert (self);
 
 #ifdef MODULE_GNRC_TCP
-    if (self->tcb != NULL) 
+    if (self->tcb_ptr != NULL) 
 #else
     if (self->fd != -1)
 #endif
@@ -208,15 +200,17 @@ zmtp_channel_connect (zmtp_channel_t *self, const char *endpoint_str)
         return -1;
 
 #ifdef MODULE_GNRC_TCP
-    gnrc_tcp_tcb_t res = zmtp_endpoint_connect (endpoint);
-    self->tcb = &res;
+    int res = zmtp_endpoint_connect (&(self->tcb), endpoint);
+    assert(res == 0);
+    self->tcb_ptr = &self->tcb;
 #else
     self->fd = zmtp_endpoint_connect (endpoint);
 #endif
 
     zmtp_endpoint_destroy (&endpoint);
+
 #ifdef MODULE_GNRC_TCP
-    if (self->tcb == NULL)         
+    if (self->tcb_ptr == NULL)         
 #else
     if (self->fd == -1)
 #endif
@@ -224,8 +218,8 @@ zmtp_channel_connect (zmtp_channel_t *self, const char *endpoint_str)
 
     if (s_negotiate (self) == -1) {
 #ifdef MODULE_GNRC_TCP
-        close_connection (self->tcb);
-        self->tcb = NULL;         
+        close_connection (&self->tcb);
+        self->tcb_ptr = NULL;         
 #else
         close (self->fd);
         self->fd = -1;
@@ -237,6 +231,7 @@ zmtp_channel_connect (zmtp_channel_t *self, const char *endpoint_str)
 }
 
 
+
 //  --------------------------------------------------------------------------
 //  Connect channel
 
@@ -246,19 +241,21 @@ zmtp_channel_listen (zmtp_channel_t *self, const char *endpoint_str)
     assert (self);
 
 #ifdef MODULE_GNRC_TCP
-    if (self->tcb != NULL)         
+    if (self->tcb_ptr != NULL)         
 #else
     if (self->fd != -1)
 #endif
         return -1;
 
     zmtp_endpoint_t *endpoint = s_endpoint_from_str (endpoint_str);
+
     if (endpoint == NULL)
         return -1;
 
 #ifdef MODULE_GNRC_TCP
-    gnrc_tcp_tcb_t res = zmtp_endpoint_listen (endpoint);
-    self->tcb = &res;
+    int res = zmtp_endpoint_listen (&(self->tcb), endpoint);
+    assert(res == 0);
+    self->tcb_ptr = &self->tcb;
 #else
     self->fd = zmtp_endpoint_listen (endpoint);
 #endif
@@ -266,7 +263,7 @@ zmtp_channel_listen (zmtp_channel_t *self, const char *endpoint_str)
     zmtp_endpoint_destroy (&endpoint);
 
 #ifdef MODULE_GNRC_TCP
-    if (self->tcb == NULL)         
+    if (self->tcb_ptr == NULL)         
 #else
     if (self->fd == -1)
 #endif
@@ -274,8 +271,8 @@ zmtp_channel_listen (zmtp_channel_t *self, const char *endpoint_str)
 
     if (s_negotiate (self) == -1) {
 #ifdef MODULE_GNRC_TCP
-        close_connection (self->tcb);
-        self->tcb = NULL;             
+        close_connection (&self->tcb);
+        self->tcb_ptr = NULL;             
 #else
         close (self->fd);
         self->fd = -1;
@@ -289,13 +286,12 @@ zmtp_channel_listen (zmtp_channel_t *self, const char *endpoint_str)
 static zmtp_endpoint_t *
 s_endpoint_from_str (const char *endpoint_str)
 {
-    /*
+#ifndef MODULE_GNRC_TCP
     if (strncmp (endpoint_str, "ipc://", 6) == 0)
         return (zmtp_endpoint_t *)
             zmtp_ipc_endpoint_new (endpoint_str + 6);
-    else
-    */
-    if (strncmp (endpoint_str, "tcp://", 6) == 0) {
+#endif
+    if (strncmp (endpoint_str, "tcp://", 6) == 0) {    
         char *colon = strrchr (endpoint_str + 6, ':');
         if (colon == NULL)
             return NULL;
@@ -325,7 +321,7 @@ s_negotiate (zmtp_channel_t *self)
     assert (self);
 
 #ifdef MODULE_GNRC_TCP
-    assert (self->tcb != NULL);          
+    assert (self->tcb_ptr != NULL);          
 #else
     assert (self->fd != -1);
 
@@ -341,46 +337,44 @@ s_negotiate (zmtp_channel_t *self)
     
 #ifdef MODULE_GNRC_TCP
     //  Send protocol signature
-    if (s_tcp_send (self->tcb, outgoing.signature, sizeof outgoing.signature) == -1)
+
+    if (s_tcp_send (&(self->tcb), outgoing.signature, sizeof(outgoing.signature)) == -1)
         goto io_error;
 
-    //  Read the first byte.
+    //  Read the signature
     struct zmtp_greeting incoming;
-    if (s_tcp_recv (self->tcb, incoming.signature, 1) == -1)
+
+    if (s_tcp_recv (&self->tcb, incoming.signature, sizeof(incoming.signature)) == -1)
         goto io_error;
+
     assert (incoming.signature [0] == 0xff);
 
-    //  Read the rest of signature
-    if (s_tcp_recv (self->tcb, incoming.signature + 1, 9) == -1)
-        goto io_error;
-    assert ((incoming.signature [9] & 1) == 1);
-
     //  Exchange major version numbers
-    if (s_tcp_send (self->tcb, outgoing.version, 1) == -1)
+    if (s_tcp_send (&self->tcb, outgoing.version, 1) == -1)
         goto io_error;
-    if (s_tcp_recv (self->tcb, incoming.version, 1) == -1)
+    if (s_tcp_recv (&self->tcb, incoming.version, 1) == -1)
         goto io_error;
 
     assert (incoming.version [0] == 3);
 
     //  Send the rest of greeting to the peer.
-    if (s_tcp_send (self->tcb, outgoing.version + 1, 1) == -1)
+    if (s_tcp_send (&self->tcb, outgoing.version + 1, 1) == -1)
         goto io_error;
-    if (s_tcp_send (self->tcb, outgoing.mechanism, sizeof outgoing.mechanism) == -1)
+    if (s_tcp_send (&self->tcb, outgoing.mechanism, sizeof outgoing.mechanism) == -1)
         goto io_error;
-    if (s_tcp_send (self->tcb, outgoing.as_server, sizeof outgoing.as_server) == -1)
+    if (s_tcp_send (&self->tcb, outgoing.as_server, sizeof outgoing.as_server) == -1)
         goto io_error;
-    if (s_tcp_send (self->tcb, outgoing.filler, sizeof outgoing.filler) == -1)
+    if (s_tcp_send (&self->tcb, outgoing.filler, sizeof outgoing.filler) == -1)
         goto io_error;
 
     //  Receive the rest of greeting from the peer.
-    if (s_tcp_recv (self->tcb, incoming.version + 1, 1) == -1)
+    if (s_tcp_recv (&self->tcb, incoming.version + 1, 1) == -1)
         goto io_error;
-    if (s_tcp_recv (self->tcb, incoming.mechanism, sizeof incoming.mechanism) == -1)
+    if (s_tcp_recv (&self->tcb, incoming.mechanism, sizeof incoming.mechanism) == -1)
         goto io_error;
-    if (s_tcp_recv (self->tcb, incoming.as_server, sizeof incoming.as_server) == -1)
+    if (s_tcp_recv (&self->tcb, incoming.as_server, sizeof incoming.as_server) == -1)
         goto io_error;
-    if (s_tcp_recv (self->tcb, incoming.filler, sizeof incoming.filler) == -1)
+    if (s_tcp_recv (&self->tcb, incoming.filler, sizeof incoming.filler) == -1)
         goto io_error;
 
     //  Send READY command
@@ -395,6 +389,7 @@ s_negotiate (zmtp_channel_t *self)
         goto io_error;
     assert ((zmtp_msg_flags (ready) & ZMTP_MSG_COMMAND) == ZMTP_MSG_COMMAND);
     zmtp_msg_destroy (&ready);
+
 #else
     //  Send protocol signature
     if (s_tcp_send (s, outgoing.signature, sizeof outgoing.signature) == -1)
@@ -440,7 +435,7 @@ s_negotiate (zmtp_channel_t *self)
         goto io_error;
 
     //  Send READY command
-    zmtp_msg_t *ready = zmtp_msg_from_const_data (0x04, "\5READY", 6);
+    zmtp_msg_t *ready = zmtp_msg_from_const_data (0x04, "\5READY", 7);
     assert (ready);
     zmtp_channel_send (self, ready);
     zmtp_msg_destroy (&ready);
@@ -457,6 +452,7 @@ s_negotiate (zmtp_channel_t *self)
 
 io_error:
     return -1;
+    
 }
 
 
@@ -478,7 +474,7 @@ zmtp_channel_send (zmtp_channel_t *self, zmtp_msg_t *msg)
         frame_flags |= ZMTP_LARGE_FLAG;
 
 #ifdef MODULE_GNRC_TCP
-    if (s_tcp_send (self->tcb, &frame_flags, sizeof frame_flags) == -1)
+    if (s_tcp_send (&self->tcb, &frame_flags, sizeof frame_flags) == -1)
 #else
     if (s_tcp_send (self->fd, &frame_flags, sizeof frame_flags) == -1)
 #endif
@@ -488,7 +484,7 @@ zmtp_channel_send (zmtp_channel_t *self, zmtp_msg_t *msg)
         const byte msg_size = zmtp_msg_size (msg);
 
 #ifdef MODULE_GNRC_TCP
-        if (s_tcp_send (self->tcb, &msg_size, sizeof msg_size) == -1)
+        if (s_tcp_send (&self->tcb, &msg_size, sizeof msg_size) == -1)
 #else
         if (s_tcp_send (self->fd, &msg_size, sizeof msg_size) == -1)
 #endif
@@ -507,7 +503,7 @@ zmtp_channel_send (zmtp_channel_t *self, zmtp_msg_t *msg)
         buffer [7] = msg_size;
 
 #ifdef MODULE_GNRC_TCP
-        if (s_tcp_send (self->tcb, buffer, sizeof buffer) == -1)
+        if (s_tcp_send (&self->tcb, buffer, sizeof buffer) == -1)
 #else
         if (s_tcp_send (self->fd, buffer, sizeof buffer) == -1)
 #endif
@@ -515,7 +511,7 @@ zmtp_channel_send (zmtp_channel_t *self, zmtp_msg_t *msg)
     }
 
 #ifdef MODULE_GNRC_TCP
-    if (s_tcp_send (self->tcb, zmtp_msg_data (msg), zmtp_msg_size (msg)) == -1)
+    if (s_tcp_send (&self->tcb, zmtp_msg_data (msg), zmtp_msg_size (msg)) == -1)
 #else
     if (s_tcp_send (self->fd, zmtp_msg_data (msg), zmtp_msg_size (msg)) == -1)
 #endif
@@ -536,7 +532,7 @@ zmtp_channel_recv (zmtp_channel_t *self)
     size_t size;
 
 #ifdef MODULE_GNRC_TCP
-    if (s_tcp_recv (self->tcb, &frame_flags, 1) == -1)
+    if (s_tcp_recv (&self->tcb, &frame_flags, 1) == -1)
 #else
     if (s_tcp_recv (self->fd, &frame_flags, 1) == -1)
 #endif
@@ -546,21 +542,23 @@ zmtp_channel_recv (zmtp_channel_t *self)
     if ((frame_flags & ZMTP_LARGE_FLAG) == 0) {
         byte buffer [1];
 #ifdef MODULE_GNRC_TCP
-        if (s_tcp_recv (self->tcb, buffer, 1) == -1)
+        if (s_tcp_recv (&self->tcb, buffer, 1) == -1)
 #else
         if (s_tcp_recv (self->fd, buffer, 1) == -1)
 #endif
             return NULL;
+        
         size = (size_t) buffer [0];
     }
     else {
         byte buffer [8];
 #ifdef MODULE_GNRC_TCP
-        if (s_tcp_recv (self->tcb, buffer, sizeof buffer) == -1)
+        if (s_tcp_recv (&self->tcb, buffer, sizeof buffer) == -1)
 #else
         if (s_tcp_recv (self->fd, buffer, sizeof buffer) == -1)
 #endif
             return NULL;
+
         size = (uint64_t) buffer [0] << 56 |
                (uint64_t) buffer [1] << 48 |
                (uint64_t) buffer [2] << 40 |
@@ -570,16 +568,18 @@ zmtp_channel_recv (zmtp_channel_t *self)
                (uint64_t) buffer [6] << 8  |
                (uint64_t) buffer [7];
     }
-    byte *data = zmalloc (size);
+
+    byte *data = malloc (size);
     assert (data);
 #ifdef MODULE_GNRC_TCP
-    if (s_tcp_recv (self->tcb, data, size) == -1) {
+    if (s_tcp_recv (&self->tcb, data, size) == -1) {
 #else
     if (s_tcp_recv (self->fd, data, size) == -1) {
 #endif
         free (data);
         return NULL;
     }
+
     byte msg_flags = 0;
     if ((frame_flags & ZMTP_MORE_FLAG) == ZMTP_MORE_FLAG)
         msg_flags |= ZMTP_MSG_MORE;
@@ -592,7 +592,6 @@ zmtp_channel_recv (zmtp_channel_t *self)
 //  --------------------------------------------------------------------------
 //  Lower-level TCP and ZMTP message I/O functions
 
-
 #ifdef MODULE_GNRC_TCP
 static int
 s_tcp_send (gnrc_tcp_tcb_t *tcb, const void *data, size_t len)
@@ -604,8 +603,7 @@ s_tcp_send (int fd, const void *data, size_t len)
     size_t bytes_sent = 0;
     while (bytes_sent < len) {
 #ifdef MODULE_GNRC_TCP
-        const ssize_t rc = send (
-            tcb, (char *) data + bytes_sent, len - bytes_sent, 0);
+        const ssize_t rc = send (tcb, (char *) data + bytes_sent, len - bytes_sent);
 #else
         const ssize_t rc = send (
             fd, (char *) data + bytes_sent, len - bytes_sent, 0);
@@ -631,8 +629,7 @@ s_tcp_recv (int fd, void *buffer, size_t len)
     size_t bytes_read = 0;
     while (bytes_read < len) {
 #ifdef MODULE_GNRC_TCP
-        const ssize_t n = recv (
-            tcb, (char *) buffer + bytes_read, len - bytes_read, 0);
+        const ssize_t n = recv (tcb, (char *) buffer + bytes_read, len - bytes_read);
 #else
         const ssize_t n = recv (
             fd, (char *) buffer + bytes_read, len - bytes_read, 0);
@@ -648,7 +645,8 @@ s_tcp_recv (int fd, void *buffer, size_t len)
 }
 
 
-/*
+
+#ifndef MODULE_GNRC_TCP
 #include <poll.h>
 
 //  Simple TCP echo server. It listens on a TCP port and after
@@ -892,5 +890,5 @@ zmtp_channel_test (bool verbose)
     printf ("OK\n");
     
 }
-*/
+#endif
 

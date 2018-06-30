@@ -23,9 +23,9 @@ struct _zmtp_dealer_t {
 //  Constructor
 
 zmtp_dealer_t *
-zmtp_dealer_new ()
+zmtp_dealer_new (void)
 {
-    zmtp_dealer_t *self = (zmtp_dealer_t *) zmalloc (sizeof *self);
+    zmtp_dealer_t *self = (zmtp_dealer_t *) malloc (sizeof *self);
     assert (self);              //  For now, memory exhaustion is fatal
 
     self->channel = NULL;
@@ -176,6 +176,7 @@ zmtp_dealer_recv (zmtp_dealer_t *self)
 //  --------------------------------------------------------------------------
 //  Selftest
 
+/*
 void
 zmtp_dealer_test (bool verbose)
 {
@@ -184,3 +185,4 @@ zmtp_dealer_test (bool verbose)
     //  @end
     printf ("OK\n");
 }
+*/

@@ -14,14 +14,13 @@
 
 #ifdef MODULE_GNRC_TCP
 #include "zmtp_tcp_endpoint_wrapper.h"
-#include "net/gnrc/tcp.h"
 #endif
 
 struct zmtp_tcp_endpoint {
     zmtp_endpoint_t base;
 #ifdef MODULE_GNRC_TCP
-    ipv6_addr_t addr;       //active: target_addr; passive: local_addr
-    uint16_t port;          //active: target_port; passive: local_port
+    char *addr;       
+    uint16_t port;       
 #else
     struct addrinfo *addrinfo;
 #endif
@@ -32,15 +31,15 @@ zmtp_tcp_endpoint_t *
 zmtp_tcp_endpoint_new (const char *ip_addr, unsigned short port)
 {
     zmtp_tcp_endpoint_t *self =
-        (zmtp_tcp_endpoint_t *) zmalloc (sizeof *self);
+        (zmtp_tcp_endpoint_t *) malloc (sizeof *self);
     if (!self)
         return NULL;
 
     //  Initialize base class
     self->base = (zmtp_endpoint_t) {
 #ifdef MODULE_GNRC_TCP
-        .connect = (gnrc_tcp_tcb_t (*) (zmtp_endpoint_t *)) zmtp_tcp_endpoint_connect,    
-        .listen = (gnrc_tcp_tcb_t (*) (zmtp_endpoint_t *)) zmtp_tcp_endpoint_listen,
+        .connect = (int (*) (gnrc_tcp_tcb_t*, zmtp_endpoint_t *)) zmtp_tcp_endpoint_connect,    
+        .listen = (int (*) (gnrc_tcp_tcb_t*, zmtp_endpoint_t *)) zmtp_tcp_endpoint_listen,
 #else
         .connect = (int (*) (zmtp_endpoint_t *)) zmtp_tcp_endpoint_connect,    
         .listen = (int (*) (zmtp_endpoint_t *)) zmtp_tcp_endpoint_listen,
@@ -48,8 +47,11 @@ zmtp_tcp_endpoint_new (const char *ip_addr, unsigned short port)
         .destroy = (void (*) (zmtp_endpoint_t **)) zmtp_tcp_endpoint_destroy,
     };
 
+
 #ifdef MODULE_GNRC_TCP
-    ipv6_addr_from_str(&self->addr, ip_addr);
+    //  Fill in the rest of the struct
+    self->addr = (char *) malloc(strlen(ip_addr) + 1);
+    memcpy(self->addr, ip_addr, strlen(ip_addr) + 1);         
     self->port = (uint16_t) port;
 #else
     //  Resolve address
@@ -77,7 +79,7 @@ zmtp_tcp_endpoint_destroy (zmtp_tcp_endpoint_t **self_p)
     if (*self_p) {
         zmtp_tcp_endpoint_t *self = *self_p;
 #ifndef MODULE_GNRC_TCP       
-        freeaddrinfo (self->addrinfo);          //ändern ?? 
+        freeaddrinfo (self->addrinfo);        
 #endif
         free (self);
         *self_p = NULL;
@@ -85,8 +87,8 @@ zmtp_tcp_endpoint_destroy (zmtp_tcp_endpoint_t **self_p)
 }
 
 #ifdef MODULE_GNRC_TCP
-gnrc_tcp_tcb_t 
-zmtp_tcp_endpoint_connect (zmtp_tcp_endpoint_t *self)
+int 
+zmtp_tcp_endpoint_connect (gnrc_tcp_tcb_t *tcb, zmtp_tcp_endpoint_t *self)
 #else
 int
 zmtp_tcp_endpoint_connect (zmtp_tcp_endpoint_t *self)
@@ -95,17 +97,24 @@ zmtp_tcp_endpoint_connect (zmtp_tcp_endpoint_t *self)
     assert (self);
 
 #ifdef MODULE_GNRC_TCP
-    gnrc_tcp_tcb_t tcb;
-    socket (&tcb);         //init tcb  
+    //  Initialize TCB and open a connection actively
+    socket (tcb);        
+    const int rc = connect (tcb, self->addr, self->port);   
 
-    const int rc = connect (&tcb, self->addr, self->port);      //open_active 
+    // For debugging: to make sure the tcb struct was initialized correctly
+    // printf("\n\nDEBUG zmtp_tcp_endpoint_connect: tcb->local_addr: "); 
+    // ipv6_addr_print((ipv6_addr_t *) tcb->local_addr);
+    // printf("\nDEBUG zmtp_tcp_endpoint_connect: tcb->peer_addr: "); 
+    // ipv6_addr_print((ipv6_addr_t *) tcb->peer_addr);
+    // printf("\nDEBUG zmtp_tcp_endpoint_connect: tcb->ll_iface: %d\n", tcb->ll_iface); 
+    // printf("DEBUG zmtp_tcp_endpoint_connect: tcb->local_port: %" PRIu16 "\n", tcb->local_port); 
+    // printf("DEBUG zmtp_tcp_endpoint_connect: tcb->peer_port: %" PRIu16 "\n", tcb->peer_port); 
+    // printf("DEBUG zmtp_tcp_endpoint_connect: tcb->state: %" PRIu8 "\n", tcb->state); 
+    // printf("DEBUG zmtp_tcp_endpoint_connect: tcb->iss: %" PRIu32 "\n", tcb->iss); 
+    // printf("DEBUG zmtp_tcp_endpoint_connect: tcb->irs: %" PRIu32 "\n\n", tcb->irs); 
 
-    if (rc != 0) {
-        close (rc);  
-        //return NULL;
-    }
+    return rc; 
 
-    return tcb;     
 #else
     const int s = socket (AF_INET, SOCK_STREAM, 0);
     if (s == -1)            
@@ -120,28 +129,24 @@ zmtp_tcp_endpoint_connect (zmtp_tcp_endpoint_t *self)
     }
 
     return s; 
+
 #endif
 }
 
 #ifdef MODULE_GNRC_TCP
-gnrc_tcp_tcb_t 
-zmtp_tcp_endpoint_listen (zmtp_tcp_endpoint_t *self)
+int 
+zmtp_tcp_endpoint_listen (gnrc_tcp_tcb_t *tcb, zmtp_tcp_endpoint_t *self)
 #else
 int
 zmtp_tcp_endpoint_listen (zmtp_tcp_endpoint_t *self)
 #endif
 {
     assert (self);
+
 #ifdef MODULE_GNRC_TCP
-    gnrc_tcp_tcb_t tcb;
-    socket(&tcb);      // init tcb
-
-    const int rc = bind_listen_accept(&tcb, self->addr, self->port);      
-    
-    if(rc != 0)
-        close(rc);
-
-    return tcb;
+    socket (tcb);
+    const int rc = bind_listen_accept(tcb, self->port);   
+    return rc;
 
 #else
     const int s = socket (AF_INET, SOCK_STREAM, 0);

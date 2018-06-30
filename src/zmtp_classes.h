@@ -20,7 +20,9 @@
 //  Internal API
 #include "zmtp_channel.h"
 #include "zmtp_endpoint.h"
+#ifndef MODULE_GNRC_TCP
 #include "zmtp_ipc_endpoint.h"
+#endif
 #include "zmtp_tcp_endpoint.h"
 
 #endif
