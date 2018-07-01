@@ -13,10 +13,6 @@
 #ifndef __ZMTP_H_INCLUDED__
 #define __ZMTP_H_INCLUDED__
 
-//  Set up environment for the application
-
-#include "zmtp_prelude.h"
-
 //  ZMTP version macros for compile-time API detection
 
 #define ZMTP_VERSION_MAJOR 0

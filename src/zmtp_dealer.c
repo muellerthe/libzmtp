@@ -53,6 +53,7 @@ zmtp_dealer_destroy (zmtp_dealer_t **self_p)
 //  --------------------------------------------------------------------------
 //
 
+/*
 int
 zmtp_dealer_ipc_connect (zmtp_dealer_t *self, const char *path)
 {
@@ -72,7 +73,7 @@ zmtp_dealer_ipc_connect (zmtp_dealer_t *self, const char *path)
     }
     return 0;
 }
-
+*/
 
 //  --------------------------------------------------------------------------
 //

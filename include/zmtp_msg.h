@@ -10,12 +10,17 @@
     =========================================================================
 */
 
+#include "sys/types.h"
+#include <stdbool.h>
+
 #ifndef __ZMTP_MSG_H_INCLUDED__
 #define __ZMTP_MSG_H_INCLUDED__
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef unsigned char byte; 
 
 //  Definitions of message flags.
 enum {
