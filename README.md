@@ -1,7 +1,8 @@
-libzmtp
-=======
+ZMTP for RIOT OS
+================
 
-An implementation of a ZMTP stack in C.
+This is a partial port of the ZeroMQ Message Transfer Protocol ZMTP for RIOT OS. 
+It is based on libzmtp, a tiny ZMTP library in C.
 
 ## Ownership and Contributing
 
