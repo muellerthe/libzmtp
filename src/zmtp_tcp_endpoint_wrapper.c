@@ -11,46 +11,48 @@ void socket(gnrc_tcp_tcb_t *tcb)
 
 int connect (gnrc_tcp_tcb_t *tcb, char *target_addr, uint16_t target_port) 
 {
-    int ret = gnrc_tcp_open_active(tcb, AF_INET6, target_addr, target_port, 0);
-    switch (ret) {
-        case 0:
-            DEBUG("gnrc_tcp_open_active() : 0 : ok\n");
-            break;
+    int ret;
+    int attempts = 0;
+    do {
+        ret = gnrc_tcp_open_active(tcb, AF_INET6, target_addr, target_port, 0);
+        attempts++;
 
-        case -EISCONN:
-            printf("gnrc_tcp_open_active() : -EISCONN\n");
-            return 1;
+        switch (ret) {
+            case 0:
+                DEBUG("gnrc_tcp_open_passive() : 0 : ok\n");
+                return 0;
 
-        case -EINVAL:
-            printf("gnrc_tcp_open_active() : -EINVAL\n");
-            return 1;
+            case -EISCONN:
+                printf("gnrc_tcp_open_active() : -EISCONN\n");
+                return 1;
 
-        case -EAFNOSUPPORT:
-            printf("gnrc_tcp_open_active() : -EAFNOSUPPORT\n");
-            return 1;
+            case -EINVAL:
+                printf("gnrc_tcp_open_active() : -EINVAL\n");
+                return 1;
 
-        case -EADDRINUSE:
-            printf("gnrc_tcp_open_active() : -EADDRINUSE\n");
-            return 1;
+            case -EAFNOSUPPORT:
+                printf("gnrc_tcp_open_active() : -EAFNOSUPPORT\n");
+                return 1;
 
-        case -ECONNREFUSED:
-            printf("gnrc_tcp_open_active() : -ECONNREFUSED\n");
-            return 1;
+            case -EADDRINUSE:
+                printf("gnrc_tcp_open_active() : -EADDRINUSE\n");
+                return 1;
 
-        case -ENOMEM:
-            printf("gnrc_tcp_open_active() : -ENOMEM\n");
-            return 1;
+            case -ECONNREFUSED:
+                DEBUG("gnrc_tcp_open_active() : -ECONNREFUSED : retrying\n");
 
-        case -ETIMEDOUT:
-            printf("gnrc_tcp_open_active() : -ETIMEDOUT\n");
-            return 1;
+            case -ENOMEM:
+                DEBUG("gnrc_tcp_open_active() : -ENOMEM : retrying\n");
 
-        default:
-            printf("gnrc_tcp_open_active() : %d\n", ret);
-            return 1;
-    }
+            case -ETIMEDOUT:
+                DEBUG("gnrc_tcp_open_active() : -ETIMEDOUT : retrying\n");
 
-    return ret;
+            default:
+                DEBUG("gnrc_tcp_open_active() : %d : retrying\n", ret);
+        }
+    } while(ret != 0 && attempts < 10);
+
+    return 1;
 }
 
 int bind_listen_accept(gnrc_tcp_tcb_t *tcb, uint16_t local_port) 
